@@ -1,6 +1,6 @@
-# Images Sorter
+# Image/Video Sorter
 
-This script may be used as standalone or as Docker image on a QNAP system (ContainerStation)
+This script may be used as standalone. A Docker-file is included which should be working - not tested yet.
 
 ### What it does:
 It scrolls through the specified INPUT_DIR and:
@@ -47,13 +47,10 @@ FFmpeg:
 ##### For Mac (_using Homebrew_) run:
 - `brew install ffmpeg`
 
-
-
-
-### Dockerinstallation
-For Docker please use the .tar image file to import to the designated server or QNAP system
-
 ### Disclaimer of Liability
+
+#### Important: Please backup your files before running the script in case anything goes sideways. It is advisable to test the script on a few samples per file extension first.
+
 The author of this code ("the author") hereby disclaims any and all liability 
 for any damage, loss, or liability to you or any third party, 
 whether direct, indirect, special, incidental, consequential, or punitive, 
