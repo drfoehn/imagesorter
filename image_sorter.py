@@ -6,27 +6,28 @@ from datetime import datetime
 import logging
 from PIL import Image, ExifTags
 import platform
+from pathlib import Path
 
 # Setup logging
 logging.basicConfig(filename='log.txt', level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 # Directories
-INPUT_DIR = "/Volumes/SSD_Stick/Bilder2/"
-OUTPUT_DIR = "/Volumes/SSD_Stick/Bilder2/sorted/"
-UNSUPPORTED_DIR = os.path.join(INPUT_DIR, "Unsupported_Files/")
-NO_CREATION_DATE_DIR = os.path.join(INPUT_DIR, "No_CreationDate/")
-ERROR_FILES_DIR = os.path.join(INPUT_DIR, "Error_Files/")
+INPUT_DIR = Path(os.environ.get('INPUT_DIR', '/app/input'))
+OUTPUT_DIR = Path(os.environ.get('OUTPUT_DIR', '/app/output'))
+UNSUPPORTED_DIR = INPUT_DIR / "Unsupported_Files"
+NO_CREATION_DATE_DIR = INPUT_DIR / "No_CreationDate"
+ERROR_FILES_DIR = INPUT_DIR / "Error_Files"
 
 # Ensure directories exist
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(UNSUPPORTED_DIR, exist_ok=True)
-os.makedirs(NO_CREATION_DATE_DIR, exist_ok=True)
-os.makedirs(ERROR_FILES_DIR, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+UNSUPPORTED_DIR.mkdir(parents=True, exist_ok=True)
+NO_CREATION_DATE_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_FILES_DIR.mkdir(parents=True, exist_ok=True)
 
 print("Directories set up.")
 
 # Supported extensions
-supported_extensions = {'.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.mov', '.MOV', '.mp4', '.MP4', '.heic', '.HEIC'}
+supported_extensions = {'.jpg', '.jpeg', '.png', '.mov', '.mp4', '.heic'}
 
 def extract_creation_date_image(file_path):
     try:
@@ -49,7 +50,7 @@ def extract_creation_date_ffprobe(file_path):
         '-select_streams', 'v:0',
         '-show_entries', 'stream_tags=creation_time',
         '-of', 'csv=p=0',
-        file_path
+        str(file_path)
     ]
     try:
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
@@ -61,63 +62,56 @@ def extract_creation_date_ffprobe(file_path):
     return None
 
 def extract_creation_date(file_path):
-    """
-    Try to get the date that a file was created, falling back to when it was
-    last modified if that isn't possible.
-    See http://stackoverflow.com/a/39501288/1709587 for explanation.
-    """
+    if file_path.suffix.lower() in {'.jpg', '.jpeg', '.png', '.heic'}:
+        return extract_creation_date_image(file_path)
+    elif file_path.suffix.lower() in {'.mov', '.mp4'}:
+        return extract_creation_date_ffprobe(file_path)
+    
+    # Fallback to file system date
     if platform.system() == 'Windows':
-        return os.path.getctime(file_path)
+        timestamp = file_path.stat().st_ctime
     else:
-        stat = os.stat(file_path)
+        stat = file_path.stat()
         try:
             timestamp = stat.st_birthtime
         except AttributeError:
-            # We're probably on Linux. No easy way to get creation dates here,
-            # so we'll settle for when its content was last modified.
-            timestamp = stat.st_mtime  # Fallback to the modification time
-
-        # Convert the timestamp to datetime and format it
-    date = datetime.fromtimestamp(timestamp).strftime('%Y_%m_%d')
-    return date
+            timestamp = stat.st_mtime
+    return datetime.fromtimestamp(timestamp).strftime('%Y_%m_%d')
 
 def move_file(src_path, dest_dir, original_name):
-    os.makedirs(dest_dir, exist_ok=True)
-    dest_path = os.path.join(dest_dir, original_name)
-    if not os.path.exists(dest_path):
-        shutil.move(src_path, dest_path)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = dest_dir / original_name
+    if not dest_path.exists():
+        shutil.move(str(src_path), str(dest_path))
         logging.info(f"Moved file: {original_name} to {dest_dir}")
         print(f"Moved file: {original_name} to {dest_dir}")
     else:
         logging.warning(f"File already exists in destination: {original_name}")
         print(f"File already exists in destination: {original_name}")
 
+def main():
+    for file_path in INPUT_DIR.iterdir():
+        if file_path.is_file():
+            if file_path.name.startswith('.'):
+                continue  # Skip hidden files
+            if file_path.suffix.lower() not in supported_extensions:
+                move_file(file_path, UNSUPPORTED_DIR, file_path.name)
+                continue
+            
+            creation_date = extract_creation_date(file_path)
+            if not creation_date:
+                move_file(file_path, NO_CREATION_DATE_DIR, file_path.name)
+                continue
+            
+            new_filename = f"{creation_date}_{file_path.name}"
+            output_subdir = OUTPUT_DIR / creation_date[:7]
+            try:
+                move_file(file_path, output_subdir, new_filename)
+            except Exception as e:
+                logging.error(f"Error handling file {file_path.name}: {e}")
+                shutil.move(str(file_path), str(ERROR_FILES_DIR))
 
-for root, dirs, files in os.walk(INPUT_DIR, topdown=True):
-    if root != INPUT_DIR:
-        break  # Skip processing any subdirectories
+if __name__ == "__main__":
+    main()
+    logging.info("Script finished running.")
 
-    for filename in files:
-        full_path = os.path.join(root, filename)
-        if filename.startswith('.'):
-            continue  # Skip hidden files
-
-        if not any(filename.lower().endswith(ext) for ext in supported_extensions):
-            move_file(full_path, UNSUPPORTED_DIR, filename)
-            continue
-
-        creation_date = extract_creation_date(full_path)
-        if not creation_date:
-            move_file(full_path, NO_CREATION_DATE_DIR, filename)
-            continue
-
-        new_filename = f"{creation_date}_{filename}"
-        output_subdir = os.path.join(OUTPUT_DIR, creation_date[:7])
-
-        try:
-            move_file(full_path, output_subdir, new_filename)
-        except Exception as e:
-            logging.error(f"Error handling file {filename}: {e}")
-            shutil.move(full_path, ERROR_FILES_DIR)
-
-logging.info("Script finished running.")

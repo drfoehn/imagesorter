@@ -1,0 +1,70 @@
+Anleitung zum Sortieren von Bildern auf Jaquline QNAP NAS
+
+Voraussetzungen:
+
+Python Version: 3.10.4
+Benötigte Bibliothek: Pillow
+Script-Pfad: /share/CACHEDEV1_DATA/Container/ImageSorter/image_sorter_local.py
+Input-Ordner: /share/CACHEDEV2_DATA/Bilder_Videos/ImageSorterInput
+Output-Ordner: /share/CACHEDEV2_DATA/Bilder_Videos/ImageSorterOutput
+
+Schritte:
+
+
+Bilder in den Input-Ordner verschieben:
+a) Öffnen Sie den File Manager Ihrer QNAP NAS.
+b) Navigieren Sie zu: /share/CACHEDEV2_DATA/Bilder_Videos/ImageSorterInput
+c) Kopieren oder verschieben Sie die zu sortierenden Bilder in diesen Ordner.
+
+
+SSH-Verbindung zur NAS herstellen:
+a) Öffnen Sie ein Terminal oder SSH-Client auf Ihrem Computer.
+b) Verbinden Sie sich mit Ihrer NAS: ssh drevil@192.168.1.159
+c) Geben Sie Ihr Passwort ein, wenn Sie dazu aufgefordert werden.
+
+
+Python-Umgebung vorbereiten:
+a) Führen Sie folgende Befehle aus, um sicherzustellen, dass Python 3 verwendet wird:
+source /etc/profile
+hash -r
+
+
+Script ausführen:
+a) Navigieren Sie zum Script-Verzeichnis:
+cd /share/CACHEDEV1_DATA/Container/ImageSorter
+b) Führen Sie das Script aus:
+python image_sorter_local.py
+
+
+Ergebnisse überprüfen:
+a) Nach Abschluss des Scripts finden Sie die sortierten Bilder in:
+/share/CACHEDEV2_DATA/Bilder_Videos/ImageSorterOutput
+b) Die Bilder sind nach Jahr und Monat in Unterordnern sortiert.
+
+
+Zusätzliche Informationen:
+
+
+Wenn Sie das Script aktualisieren oder ändern möchten, bearbeiten Sie die Datei:
+/share/CACHEDEV1_DATA/Container/ImageSorter/image_sorter_local.py
+
+
+Sollte Pillow nicht installiert sein oder aktualisiert werden müssen:
+/share/CACHEDEV1_DATA/.qpkg/Python3/python3/bin/pip3 install --user --upgrade Pillow
+
+
+Um das Script von jedem Verzeichnis aus starten zu können, fügen Sie diese Zeile zu Ihrer ~/.bashrc hinzu:
+export PATH=$PATH:/share/CACHEDEV1_DATA/Container/ImageSorter
+
+
+Wenn Sie Änderungen an der .bashrc vorgenommen haben, führen Sie aus:
+source ~/.bashrc
+
+
+Fehlerbehandlung:
+
+Wenn das Script nicht startet, überprüfen Sie die Python-Version mit:
+python --version
+Stellen Sie sicher, dass die Input- und Output-Ordner existieren und die richtigen Berechtigungen haben.
+Überprüfen Sie, ob Pillow korrekt installiert ist:
+python -c "import PIL; print(PIL.version)"
